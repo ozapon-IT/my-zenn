@@ -1,0 +1,21 @@
+{
+  "name": "my-zenn",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "new": "zenn new:article",
+    "preview": "zenn preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github-personal:ozapon-IT/my-zenn.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "zenn-cli": "^0.5.2"
+  }
+}
