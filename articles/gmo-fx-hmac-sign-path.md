@@ -3,7 +3,7 @@ title: "GMOコインFX APIのERR-5010でハマった話 — 署名対象パス�
 emoji: "🔏"
 type: "tech"
 topics: ["gmocoin", "fx", "api", "python"]
-published: false
+published: true
 ---
 
 ## TL;DR
@@ -155,5 +155,3 @@ GMOコインFX API で ERR-5010 が出たら、この3つを順に確認して�
 1. **署名対象パスから `/private` を外したか** — 署名は `/v1/...`、リクエストURLは `/private/v1/...` の非対称
 2. **`Accept` ヘッダを送っているか** — 素の `http.client` / `urllib` はデフォルトで送らず、署名が正しくても ERR-5010 になる
 3. **HTTPステータスではなくボディの `status` を見ているか** — 認証エラーでも HTTP 200 が返る
-
-次回は、同じシステムのレートリミット制御(POST 1回/秒・GET 6回/秒をクライアント側で強制する実装)について書く予定です。
