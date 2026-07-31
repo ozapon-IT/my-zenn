@@ -3,7 +3,7 @@ title: "GMOコインFX自動売買の非常停止(Kill Switch) — ロックで�
 emoji: "🛑"
 type: "tech"
 topics: ["gmocoin", "fx", "python", "aws"]
-published: false
+published: true
 ---
 
 ## TL;DR
