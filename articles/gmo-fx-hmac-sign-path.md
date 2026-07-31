@@ -105,7 +105,7 @@ res = requests.get(endPoint + path, headers=headers)      # URL 組み立てに�
 | コード | 公式の説明(要約) | 実測した条件 |
 |---|---|---|
 | ERR-5011 | API-KEY が設定されていない | `API-KEY` ヘッダ不在 |
-| ERR-5012 | API-KEY が認証エラーの場合など | キー不明・IP許可リスト外・権限不足(ここで弾かれると署名の正誤に関係なくこのコード) |
+| ERR-5012 | API-KEY が認証エラーの場合など | キー不明・IP許可リスト外・権限不足(ここで弾かれると署名の正誤に関係なくこのコード)。IPv6 egress との食い違いで踏んだ話は[ERR-5012の記事](https://zenn.dev/ozapon/articles/gmo-fx-err5012-ipv6)に書いた |
 | ERR-5010 | API-SIGN に不正がある | キーは認識された上で署名検証段階の失敗(パス間違い **or `Accept` 欠落**) |
 
 ## 解決策
@@ -155,3 +155,5 @@ GMOコインFX API で ERR-5010 が出たら、この3つを順に確認して�
 1. **署名対象パスから `/private` を外したか** — 署名は `/v1/...`、リクエストURLは `/private/v1/...` の非対称
 2. **`Accept` ヘッダを送っているか** — 素の `http.client` / `urllib` はデフォルトで送らず、署名が正しくても ERR-5010 になる
 3. **HTTPステータスではなくボディの `status` を見ているか** — 認証エラーでも HTTP 200 が返る
+
+キー・IP・権限の段階で弾かれる `ERR-5012`(特に IPv6 egress が原因だったケース)は [GMOコインFX APIのERR-5012でハマった話 — 真因はIPv6 egressだった](https://zenn.dev/ozapon/articles/gmo-fx-err5012-ipv6) に書いています。
