@@ -2,7 +2,7 @@
 title: "テスト環境のない本番APIで誤発注を封じ込める設計"
 emoji: "🔒"
 type: "tech"
-topics: ["python", "aws", "lambda", "gmocoin"]
+topics: ["gmocoin", "fx", "python", "aws"]
 published: false
 ---
 
@@ -32,12 +32,13 @@ GMOコインFX の API を使う自動売買システム(AWS Lambda + Python)で
 
 ```mermaid
 graph TD
-    A["インフラの既定値<br/>両フラグとも安全側"] --> B["バッチ層の明示チェック<br/>可視化目的の二重化"]
-    B --> C["クライアント層の最終防壁<br/>URL組み立て前に判定"]
-    C -->|"条件を満たさない"| D["例外を送出<br/>スタブ応答を返す"]
+    A["インフラの既定値<br/>両フラグとも安全側"] --> B{"バッチ層の明示チェック<br/>可視化目的の二重化"}
+    B -->|"条件を満たさない"| S1["スタブ応答を返す"]
+    B -->|"条件を満たす"| C{"クライアント層の最終防壁<br/>URL組み立て前に判定"}
+    C -->|"条件を満たさない"| S2["例外を送出<br/>呼び出し側が捕捉しスタブ応答に変換"]
     C -->|"条件を満たす"| E["実際にHTTP送信"]
-    F["テスト"] -.->|"遮断される組み合わせを列挙"| C
-    F -.->|"判定が同一関数か検証"| B
+    T["テスト"] -.->|"判定が同一関数か検証"| B
+    T -.->|"遮断される組み合わせを列挙"| C
 ```
 
 層は重ねていますが、**「解禁してよいか」を判定するロジックは1つの関数に集約**しています。この1点が、後述する事故の核心です。
@@ -50,12 +51,13 @@ graph TD
 
 ```python
 _LIVE_ORDER_FLAG = "ALLOW_LIVE_ORDERS"  # 発注解禁の主フラグ
-_PHASE_FLAG = "TRADING_PHASE"           # 実行フェーズ(既定はモック段階)
-_LIVE_PHASES = frozenset({"実取引", "検証"})
+_PHASE_FLAG = "TRADING_PHASE"           # 実行フェーズ(既定は "mock")
+# 実送信を許すフェーズ("live" = 実取引、"validation" = 仕様確認のための疎通)
+_LIVE_PHASES = frozenset({"live", "validation"})
 
 def live_orders_allowed() -> bool:
     allow = os.environ.get(_LIVE_ORDER_FLAG, "").strip().lower() == "true"
-    phase = os.environ.get(_PHASE_FLAG, "モック").strip()
+    phase = os.environ.get(_PHASE_FLAG, "mock").strip()
     return allow and phase in _LIVE_PHASES
 ```
 
