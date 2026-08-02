@@ -1,5 +1,5 @@
 ---
-title: "GMOコインFX自動売買の非常停止(Kill Switch) — ロックではなく冪等性で二重決済を防ぐ設計"
+title: "GMOコインFX 自動売買の非常停止(Kill Switch) — ロックではなく冪等性で二重決済を防ぐ設計"
 emoji: "🛑"
 type: "tech"
 topics: ["gmocoin", "fx", "python", "aws"]
