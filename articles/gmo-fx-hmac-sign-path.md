@@ -156,4 +156,4 @@ GMOコインFX API で ERR-5010 が出たら、この3つを順に確認して�
 2. **`Accept` ヘッダを送っているか** — 素の `http.client` / `urllib` はデフォルトで送らず、署名が正しくても ERR-5010 になる
 3. **HTTPステータスではなくボディの `status` を見ているか** — 認証エラーでも HTTP 200 が返る
 
-キー・IP・権限の段階で弾かれる `ERR-5012`(特に IPv6 egress が原因だったケース)は [GMOコインFX APIのERR-5012でハマった話 — 真因はIPv6 egressだった](https://zenn.dev/ozapon/articles/gmo-fx-err5012-ipv6) に書いています。
+キー・IP・権限の段階で弾かれる `ERR-5012`(特に IPv6 egress が原因だったケース)は [GMOコインFX APIのERR-5012でハマった話 — 真因はIPv6 egressだった](https://zenn.dev/ozapon/articles/gmo-fx-err5012-ipv6) に書いています。認証を通過したあとのボディ型(`ifoOrder` の size を JSON number で送ると `ERR-5105`)は [ERR-5105の記事](https://zenn.dev/ozapon/articles/gmo-fx-err5105-ifo-size) に書きました。

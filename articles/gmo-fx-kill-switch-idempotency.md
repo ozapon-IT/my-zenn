@@ -141,4 +141,4 @@ return {"closed": closed, "residual": residual, "verification_failed": False}
 - エラーの no-op 吸収は**実測確認済みコードの完全一致のみ**。文字列部分一致は数値断片との偶然の一致で偽成功を生む。非常停止では「成功と誤認」が最悪なので、判定不能はすべて失敗側に倒す
 - 取消も決済も API 上の成功は「受付」にすぎない。Step3 の前に `orderedSize` の反映を待ち、決済後は短ポーリングで消えたことだけを完了とする。残存は閉じたと主張しない
 
-そもそも開発中に誤発注を出さないための封じ込め設計は[テスト環境のない本番APIで誤発注を封じ込める設計](https://zenn.dev/ozapon/articles/gmo-fx-order-containment)、同じシステムのレートリミット設計は[GMOコインFX APIのレートリミットをクライアント側で強制する設計](https://zenn.dev/ozapon/articles/gmo-fx-rate-limiter)、認証まわりでハマった話は[GMOコインFX APIのERR-5010でハマった話](https://zenn.dev/ozapon/articles/gmo-fx-hmac-sign-path)に書いています。
+そもそも開発中に誤発注を出さないための封じ込め設計は[テスト環境のない本番APIで誤発注を封じ込める設計](https://zenn.dev/ozapon/articles/gmo-fx-order-containment)、同じシステムのレートリミット設計は[GMOコインFX APIのレートリミットをクライアント側で強制する設計](https://zenn.dev/ozapon/articles/gmo-fx-rate-limiter)、認証まわりでハマった話は[GMOコインFX APIのERR-5010でハマった話](https://zenn.dev/ozapon/articles/gmo-fx-hmac-sign-path)、発注ボディの数量型でハマった話は[ERR-5105の記事](https://zenn.dev/ozapon/articles/gmo-fx-err5105-ifo-size)に書いています。
