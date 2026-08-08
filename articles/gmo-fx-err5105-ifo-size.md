@@ -3,7 +3,7 @@ title: "GMOコインFX APIのERR-5105でハマった話 — ifoOrderのsizeは�
 emoji: "🔢"
 type: "tech"
 topics: ["gmocoin", "fx", "python", "api"]
-published: false
+published: true
 ---
 
 ## TL;DR
@@ -45,7 +45,7 @@ GMO の Private API は、成否を HTTP ステータスではなくボディの
 
 困ったのはメッセージの粒度です。"mismatch type" としか書かれておらず、**どのフィールドの型が違うのか**が分かりません。エラーコード一覧にも `ERR-5105` への記載はありませんでした(2026年8月時点で確認)。
 
-数量が小さすぎる場合は別コード `ERR-5126`(Size is invalid.) が返ります。今回は最小ロットどおり送っているので、値の範囲ではなく**型**の問題だと切り分けました。
+数量が小さすぎる場合は別コード `ERR-5126` が返ります。実測の `message_string` は `Size is invalid.` で、公式のエラー一覧では最小/最大注文数量や建玉超過の説明です(2026年8月時点で確認)。今回は最小ロットどおり送っているので、値の範囲ではなく**型**の問題だと切り分けました。
 
 ## 原因
 
@@ -110,14 +110,14 @@ class IfoOrderRequest(BaseModel):
 
 テストでは「ワイヤが文字列であること」と「Python 側は int のままロット検証が効くこと」の両方を固定しています。型を最初から `str` にすると、`"150"` のような 100 倍数でない値の検証を自分で再実装することになり、責務がぶれやすいためです。
 
-なお、同じ疎通で成功レスポンスの `data` が注文オブジェクトの配列であること(IFD-OCO ならエントリー1件 + 決済2件)も確定しました。レスポンス側の `size` も文字列です。配列の扱いや保存すべき ID の話は、封じ込め記事の「制御下の最小ロット疎通」の文脈に譲ります。
+なお、同じ疎通で成功レスポンスの `data` が注文オブジェクトの配列であること(IFD-OCO ならエントリー1件 + 決済2件)も確定しました。レスポンス側の `size` も文字列です。配列のパースや親注文 ID の扱いは本記事の範囲外とします。
 
 ## まとめ
 
 - `ifoOrder` の `firstSize` / `secondSize` は**整数文字列**で送る。JSON number だと `ERR-5105`
 - 公式パラメータ表の Type は `string`。サンプルどおりに引用符付きで送れば踏まない
 - ドメインを `int` にするなら、シリアライズ境界で str 化を明示する(`field_serializer` など)
-- `ERR-5105` はメッセージからフィールドを特定しにくい。数量不正(`ERR-5126`)と切り分けたうえで、型を疑う
+- `ERR-5105` はメッセージからフィールドを特定しにくい。数量範囲の `ERR-5126` と切り分けたうえで、型を疑う
 - 副作用のある仕様確定は、[封じ込め](https://zenn.dev/ozapon/articles/gmo-fx-order-containment)を維持した制御下の疎通で行う
 
 認証の枝は [ERR-5010](https://zenn.dev/ozapon/articles/gmo-fx-hmac-sign-path) / [ERR-5012](https://zenn.dev/ozapon/articles/gmo-fx-err5012-ipv6)、設計の幹は [封じ込め](https://zenn.dev/ozapon/articles/gmo-fx-order-containment) / [レートリミット](https://zenn.dev/ozapon/articles/gmo-fx-rate-limiter) / [Kill Switch 冪等](https://zenn.dev/ozapon/articles/gmo-fx-kill-switch-idempotency) に書いています。
