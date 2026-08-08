@@ -18,7 +18,7 @@ GMOコインFX の API を使う自動売買システム(AWS Lambda + Python)で
 
 制約条件は次のとおりです。
 
-- GMO Private API の呼び出し上限は **POST 1回/秒・GET 6回/秒**(2026年7月時点の[公式ドキュメント](https://api.coin.z.com/fxdocs/)記載)。なお公式ドキュメントには「制限はシステム負荷状況によって一時的に変更する場合があります」とあり、上限ぴったりを狙わず余裕を持って守る前提です
+- GMO Private API の呼び出し上限は **POST 1回/秒・GET 6回/秒**(2026年8月時点の[公式ドキュメント](https://api.coin.z.com/fxdocs/)記載)。なお公式ドキュメントには「制限はシステム負荷状況によって一時的に変更する場合があります」とあり、上限ぴったりを狙わず余裕を持って守る前提です
 - 発注・取消系の POST は失敗時のコストが高い。安易な再送は**二重注文**のリスクになる
 - 401 検知時にタイムスタンプ再取得+再署名で1回だけリトライする設計があり、**リトライ経路でもレートリミットを守る**必要がある
 
@@ -135,4 +135,4 @@ GET(残高照会・建玉一覧など)は失敗してもリトライすればよ
 - **タイムアウト時こそクールダウンを進める**。「タイムアウト = 未処理」ではない
 - プロセス内リミッターで済むかは**どの実行が重なり得るか**の洗い出しとセットで判断する。稀にしか起きない重なりは、レート制御ではなく冪等性で吸収する選択肢もある
 
-同じシステムの非常停止の冪等設計は[GMOコインFX自動売買の非常停止(Kill Switch) — ロックではなく冪等性で二重決済を防ぐ設計](https://zenn.dev/ozapon/articles/gmo-fx-kill-switch-idempotency)、認証まわりでハマった話は[GMOコインFX APIのERR-5010でハマった話 — 署名対象パスとAcceptヘッダの2つの罠](https://zenn.dev/ozapon/articles/gmo-fx-hmac-sign-path)に書いています。
+開発中に誤発注を出さないための封じ込め設計は[テスト環境のない本番APIで誤発注を封じ込める設計](https://zenn.dev/ozapon/articles/gmo-fx-order-containment)、同じシステムの非常停止の冪等設計は[GMOコインFX自動売買の非常停止(Kill Switch) — ロックではなく冪等性で二重決済を防ぐ設計](https://zenn.dev/ozapon/articles/gmo-fx-kill-switch-idempotency)、認証まわりでハマった話は[GMOコインFX APIのERR-5010でハマった話 — 署名対象パスとAcceptヘッダの2つの罠](https://zenn.dev/ozapon/articles/gmo-fx-hmac-sign-path)に書いています。

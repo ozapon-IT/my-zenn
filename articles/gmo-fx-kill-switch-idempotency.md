@@ -9,7 +9,7 @@ published: true
 ## TL;DR
 
 - 自動売買システムの非常停止(Kill Switch)は手動起動のため、**定時バッチと同時に走り得ます**。この重なりを排他ロックではなく**冪等性で吸収する**設計にしました
-- 柱は3つ。**毎回サーバから建玉・注文を再取得してから動く**(2回目の実行は自然に no-op になる)、**「建玉なし」エラーの no-op 吸収は実測確認済みコードの完全一致のみ**(確認できるまで許可リストは空 = すべて失敗扱い)、**決済結果は建玉一覧の再取得で突合する**
+- 柱は3つ。**毎回サーバから建玉・注文を再取得してから動く**(2回目の実行は自然に no-op になる)、**「建玉なし」エラーの no-op 吸収は実測確認済みコードの完全一致のみ**(確認できるまで許可リストは空 = すべて失敗扱い)、**決済の受付後は建玉一覧を短ポーリングし、消えたことだけを完了とする**
 - この形に落ち着いたのは、エラーメッセージの文字列部分一致で判定していた旧実装が、**本物の決済失敗を偽成功として吸収するバグ**を起こしたためです。非常停止では「成功と誤認する」ことが最悪の失敗です
 
 ## 前提: システム概要と制約条件
@@ -44,8 +44,12 @@ flowchart TD
     S1 -->|失敗| F1[中断・後続ステップを実行しない]
     S1 -->|成功| S2[Step2: 決済注文のキャンセル]
     S2 -->|失敗| F2[中断・後続ステップを実行しない]
-    S2 -->|成功| S3[Step3: 残存建玉の成行クローズ]
+    S2 -->|成功| W[取消反映待ち<br/>建玉の orderedSize を監視]
+    W --> S3[Step3: 残存建玉の成行クローズ]
+    S3 --> V[短ポーリングで残存を判別]
 ```
+
+取消も決済も、API 上の成功は「受付」であり反映は非同期です。Step2 の直後に成行クローズへ進むと、まだ生きている決済注文と数量が衝突して業務エラーになり、せっかく取り消した直後の建玉が無防備なまま残ることがあります。そこで Step3 の前に、各建玉の `orderedSize`(紐づく有効注文の数量)が 0 になるまで短く待ちます。
 
 ## 各要素の解説
 
@@ -81,24 +85,37 @@ def _is_no_position_error(exc: BaseException) -> bool:
 
 ポイントは2つあります。1つは `all()` — 複数エラーのうち1つでも未確認コードが混ざっていたら吸収しないこと。もう1つは、**許可リストが現時点で空**であることです。
 
-公式ドキュメントのエラーコード一覧には「ERR-254: 指定された建玉が存在しない場合に返ってきます」という記載があります(2026年7月時点)。それでも許可リストに入れていないのは、**どの呼び出しがどの状況でどのコードを返すかを実測で確認してから足す**運用にしているためです。確認できるまでは全エラーが失敗側に倒れます。非常停止が「失敗」を報告すれば人間が再試行・確認できますが、「成功」と誤報告すれば建玉が残っていることに誰も気づけません。
+公式ドキュメントのエラーコード一覧には「ERR-254: 指定された建玉が存在しない場合に返ってきます」という記載があります(2026年8月時点)。それでも許可リストに入れていないのは、**どの呼び出しがどの状況でどのコードを返すかを実測で確認してから足す**運用にしているためです。確認できるまでは全エラーが失敗側に倒れます。非常停止が「失敗」を報告すれば人間が再試行・確認できますが、「成功」と誤報告すれば建玉が残っていることに誰も気づけません。
 
-### 決済結果は建玉一覧の再取得で突合する
+### 決済結果は短ポーリングで突合する
 
-成行クローズの後は、注文リクエストが受け付けられたことではなく、**建玉一覧を再取得して実際に消えたこと**を決済完了の根拠にします。再取得に失敗した場合は「閉じたかどうか確認できない」ので、閉じた建玉としては報告しません(ここも fail-closed)。
+成行クローズの成功も「受付」(`WAITING`)であり、即時約定ではありません。直後に建玉一覧を1回だけ見ると、「まだ約定待ちで残っている」のか「本当に閉じていない」のかを区別できません。
+
+そこで決済 POST の後は建玉一覧を短くポーリングし、**数秒待っても消えない建玉だけを残存として扱います**。再取得自体に失敗した場合は「閉じたかどうか確認できない」ので、閉じた建玉としては報告しません(ここも fail-closed)。
 
 ```python
-# 決済後に建玉を再取得し、実際に閉じた positionId を確認する(抜粋・ログ等は省略)
-try:
-    remaining = _fetch_open_positions(client, symbol)
-except Exception:
-    # 再取得失敗 → クローズ結果を確認できないため「閉じた」と主張しない
-    return []
+# 決済後に建玉を短ポーリングし、消えたものだけを閉じたとみなす(抜粋)
+submitted_ids = [p["positionId"] for p in positions]
+for attempt in range(max_attempts):
+    try:
+        remaining = _fetch_open_positions(client, symbol)
+    except Exception:
+        # 再取得失敗 → 確認不能なので閉じたと主張しない
+        return {"closed": [], "residual": [], "verification_failed": True}
 
-remaining_ids = {p.get("positionId") for p in remaining}
-closed_ids = [p["positionId"] for p in positions if p["positionId"] not in remaining_ids]
+    remaining_ids = {p.get("positionId") for p in remaining}
+    if not any(pid in remaining_ids for pid in submitted_ids):
+        return {"closed": submitted_ids, "residual": [], "verification_failed": False}
+
+    time.sleep(interval)
+
+# ポーリング後も残る建玉は residual。閉じたと主張しない
+closed = [pid for pid in submitted_ids if pid not in remaining_ids]
+residual = [pid for pid in submitted_ids if pid in remaining_ids]
+return {"closed": closed, "residual": residual, "verification_failed": False}
 ```
 
+残存は「一時的な約定待ち」ではなく、手仕舞いが完了していない可能性として扱います。次回起動や運用者への通知側で拾えるよう、閉じた ID とは分けて返します。
 ## 設計判断: 代替案とトレードオフ
 
 ### 案A: 分散ロック(DynamoDB)で排他する → 不採用
@@ -122,6 +139,6 @@ closed_ids = [p["positionId"] for p in positions if p["positionId"] not in remai
 - 手動起動の非常停止と定時バッチの重なりは、排他ロックではなく**冪等性で吸収**する。「必ず走る」が求められるコンポーネントにロックを持ち込まない
 - 冪等性の基盤は**毎回のサーバ状態の再取得**。ローカルの記憶ではなくサーバの現在状態を唯一の真実にすれば、2回目の実行は自然に no-op になる
 - エラーの no-op 吸収は**実測確認済みコードの完全一致のみ**。文字列部分一致は数値断片との偶然の一致で偽成功を生む。非常停止では「成功と誤認」が最悪なので、判定不能はすべて失敗側に倒す
-- 決済完了の根拠は「リクエストが通ったこと」ではなく**再取得した建玉一覧から消えたこと**
+- 取消も決済も API 上の成功は「受付」にすぎない。Step3 の前に `orderedSize` の反映を待ち、決済後は短ポーリングで消えたことだけを完了とする。残存は閉じたと主張しない
 
-同じシステムのレートリミット設計は[GMOコインFX APIのレートリミットをクライアント側で強制する設計](https://zenn.dev/ozapon/articles/gmo-fx-rate-limiter)、認証まわりでハマった話は[GMOコインFX APIのERR-5010でハマった話](https://zenn.dev/ozapon/articles/gmo-fx-hmac-sign-path)に書いています。
+そもそも開発中に誤発注を出さないための封じ込め設計は[テスト環境のない本番APIで誤発注を封じ込める設計](https://zenn.dev/ozapon/articles/gmo-fx-order-containment)、同じシステムのレートリミット設計は[GMOコインFX APIのレートリミットをクライアント側で強制する設計](https://zenn.dev/ozapon/articles/gmo-fx-rate-limiter)、認証まわりでハマった話は[GMOコインFX APIのERR-5010でハマった話](https://zenn.dev/ozapon/articles/gmo-fx-hmac-sign-path)に書いています。
