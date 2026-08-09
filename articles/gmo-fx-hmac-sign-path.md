@@ -146,7 +146,7 @@ API キー・シークレットは環境変数や Secrets Manager から渡し�
 {"status": 0, "data": { /* 残高等 */ }, "responsetime": "..."}
 ```
 
-認証エラーでも HTTP 200 で返るため、クライアント側では HTTP ステータスに加えて**ボディの `status != 0` を必ず検査**してください。
+認証エラーでも HTTP 200 で返るため、クライアント側では HTTP ステータスに加えて**ボディの `status != 0` を必ず検査**してください。これを見落とすと、約定取得が空配列扱いに化けて下流が事実と食い違うことがあります(詳細は[HTTP 200で約定が0件になった話](https://zenn.dev/ozapon/articles/gmo-fx-http200-empty-executions)に書きました)。
 
 ## まとめ — ERR-5010 チェックリスト
 
@@ -156,4 +156,4 @@ GMOコインFX API で ERR-5010 が出たら、この3つを順に確認して�
 2. **`Accept` ヘッダを送っているか** — 素の `http.client` / `urllib` はデフォルトで送らず、署名が正しくても ERR-5010 になる
 3. **HTTPステータスではなくボディの `status` を見ているか** — 認証エラーでも HTTP 200 が返る
 
-キー・IP・権限の段階で弾かれる `ERR-5012`(特に IPv6 egress が原因だったケース)は [GMOコインFX APIのERR-5012でハマった話 — 真因はIPv6 egressだった](https://zenn.dev/ozapon/articles/gmo-fx-err5012-ipv6) に書いています。認証を通過したあとのボディ型(`ifoOrder` の size を JSON number で送ると `ERR-5105`)は [ERR-5105の記事](https://zenn.dev/ozapon/articles/gmo-fx-err5105-ifo-size) に書きました。
+キー・IP・権限の段階で弾かれる `ERR-5012`(特に IPv6 egress が原因だったケース)は [GMOコインFX APIのERR-5012でハマった話 — 真因はIPv6 egressだった](https://zenn.dev/ozapon/articles/gmo-fx-err5012-ipv6) に書いています。認証を通過したあとのボディ型(`ifoOrder` の size を JSON number で送ると `ERR-5105`)は [ERR-5105の記事](https://zenn.dev/ozapon/articles/gmo-fx-err5105-ifo-size) に、HTTP 200 の業務エラーを「約定なし」と誤認した話は [約定0件に化けた記事](https://zenn.dev/ozapon/articles/gmo-fx-http200-empty-executions) に書きました。
