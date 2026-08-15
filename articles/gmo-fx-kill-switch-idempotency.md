@@ -9,7 +9,7 @@ published: true
 ## TL;DR
 
 - 自動売買システムの非常停止(Kill Switch)は手動起動のため、**定時バッチと同時に走り得ます**。この重なりを排他ロックではなく**冪等性で吸収する**設計にしました
-- 柱は3つ。**毎回サーバから建玉・注文を再取得してから動く**(2回目の実行は自然に no-op になる)、**「建玉なし」エラーの no-op 吸収は実測確認済みコードの完全一致のみ**(確認できるまで許可リストは空 = すべて失敗扱い)、**決済の受付後は建玉一覧を短ポーリングし、消えたことだけを完了とする**
+- 柱は3つ。**毎回サーバから建玉・注文を再取得してから動く**(2回目の実行は自然に no-op になる)、**「建玉なし」エラーの no-op 吸収は実測確認済みコードの完全一致のみ**(確認できるまで許可リストは空 = すべて失敗扱い)、**決済 POST の後は建玉一覧を短ポーリングし、消えたことだけを完了とする**
 - この形に落ち着いたのは、エラーメッセージの文字列部分一致で判定していた旧実装が、**本物の決済失敗を偽成功として吸収するバグ**を起こしたためです。非常停止では「成功と誤認する」ことが最悪の失敗です
 
 ## 前提: システム概要と制約条件
@@ -51,11 +51,11 @@ flowchart TD
 
 Step0 は `GET /public/v1/status` の **`data.status` が `OPEN` かどうか**で判定します(2026年8月時点の公式。値は `MAINTENANCE` / `CLOSE` / `OPEN`)。ボディ外側の `status`(API 成否の 0/1)と、`data.status`(市場状態)は**同名で別物**なので取り違えないようにしています。
 
-以前は「参照系の Private GET が通れば取引時間内」と代理判定していました。しかし閉場中でも `openPositions` 等は HTTP 200 + ボディ `status: 0` を返すため、閉場を検知できませんでした(2026-08-08、土曜の閉場中に実測)。そこで公式ステータスを主判定にし、参照系 GET の健全性チェックは「市場は開いているが API が壊れている」ケース用に併用しています。閉場やステータス不明のときは処理を進めず次回持ち越しとし、Kill Switch の応答も成功(`ok`)には倒しません。
+以前は「参照系の Private GET が通れば取引時間内」と代理判定していました。しかし閉場中でも `openPositions` 等は HTTP 200 + ボディ `status: 0` を返すため、閉場を検知できませんでした(土曜の閉場中に実測)。そこで公式ステータスを主判定にし、参照系 GET の健全性チェックは「市場は開いているが API が壊れている」ケース用に併用しています。閉場やステータス不明のときは処理を進めず次回持ち越しとし、Kill Switch の応答も成功(`ok`)には倒しません。
 
-取消も決済も、API 上の成功は「受付」であり反映は非同期です。Step2 の直後に成行クローズへ進むと、取消未反映のまま決済に進むことになります。現行本番パスでは枠超過エラーは再現しませんでしたが、状態の単純化と TP/SL とのレース回避のため、Step3 の前に各建玉の `orderedSize`(紐づく有効注文の数量)が 0 になるまで短く待ちます。
+この閉場判定だけを掘り下げた話(閉場中の実レスポンスと、`data.status` を使う判定)は [閉場なのに建玉取得が通った話](https://zenn.dev/ozapon/articles/gmo-fx-market-status-closed) に分けて書きました。
 
-この取消反映待ちだけを掘り下げた話(公式 ERR-423 と実測のずれ、参照系 GET のスナップショット再利用、ポーリング上限の判断)は [決済前キャンセルの設計記事](https://zenn.dev/ozapon/articles/gmo-fx-err423-ordered-size) に分けて書きました。
+取消の成功も「受付」であり、反映は非同期です。Step2 の直後に成行クローズへ進むと、取消未反映のまま決済に進むことになります。状態の単純化と TP/SL とのレース回避のため、Step3 の前に各建玉の `orderedSize`(紐づく有効注文の数量)が 0 になるまで短く待ちます。測り方と、枠超過エラーを根拠にしない理由は [決済前キャンセルの設計記事](https://zenn.dev/ozapon/articles/gmo-fx-err423-ordered-size) に書いています。
 
 ## 各要素の解説
 
@@ -95,7 +95,7 @@ def _is_no_position_error(exc: BaseException) -> bool:
 
 ### 決済結果は短ポーリングで突合する
 
-成行クローズの成功も「受付」(`WAITING`)であり、即時約定ではありません。直後に建玉一覧を1回だけ見ると、「まだ約定待ちで残っている」のか「本当に閉じていない」のかを区別できません。
+成行クローズの API 上の成功は、**約定を保証しません**。返る `status` は「受付」(`WAITING`)のことも、同期的に約定した `EXECUTED` のこともあります(実測。詳細は[決済前キャンセルの設計記事](https://zenn.dev/ozapon/articles/gmo-fx-err423-ordered-size))。いずれにせよ直後に建玉一覧を1回だけ見ても、「まだ約定待ちで残っている」のか「本当に閉じていない」のかは区別できません。
 
 そこで決済 POST の後は建玉一覧を短くポーリングし、**数秒待っても消えない建玉だけを残存として扱います**。再取得自体に失敗した場合は「閉じたかどうか確認できない」ので、閉じた建玉としては報告しません(ここも fail-closed)。
 
@@ -121,7 +121,7 @@ residual = [pid for pid in submitted_ids if pid in remaining_ids]
 return {"closed": closed, "residual": residual, "verification_failed": False}
 ```
 
-残存は「一時的な約定待ち」ではなく、手仕舞いが完了していない可能性として扱います。次回起動や運用者への通知側で拾えるよう、閉じた ID とは分けて返します。
+ポーリング後も残る建玉は「一時的な約定待ち」ではなく、手仕舞いが完了していない可能性として扱います。共有シーケンスは閉じた建玉と残った建玉を分けて返し、**残ったものを閉じたとは主張しません**。そこから先(次回起動での再取得、運用者への通知)をどう扱うかは呼び出し側の責務です。
 
 なお Step3 の `closeOrder` 自体も、**GMO が明示的に拒否した業務エラーだけ**をゲート付きで再送します。タイムアウトや HTTP エラーは「受付済みかもしれない」ため再送せず、失敗として扱います。
 
@@ -148,6 +148,6 @@ return {"closed": closed, "residual": residual, "verification_failed": False}
 - 手動起動の非常停止と定時バッチの重なりは、排他ロックではなく**冪等性で吸収**する。「必ず走る」が求められるコンポーネントにロックを持ち込まない
 - 冪等性の基盤は**毎回のサーバ状態の再取得**。ローカルの記憶ではなくサーバの現在状態を唯一の真実にすれば、2回目の実行は自然に no-op になる
 - エラーの no-op 吸収は**実測確認済みコードの完全一致のみ**。文字列部分一致は数値断片との偶然の一致で偽成功を生む。非常停止では「成功と誤認」が最悪なので、判定不能はすべて失敗側に倒す
-- 取消も決済も API 上の成功は「受付」にすぎない。Step3 の前に `orderedSize` の反映を待ち、決済後は短ポーリングで消えたことだけを完了とする。残存は閉じたと主張しない
+- 取消の API 上の成功は「受付」にすぎず、決済の成功も約定を保証しない。Step3 の前に `orderedSize` の反映を待ち、決済後は短ポーリングで消えたことだけを完了とする。残ったものを閉じたとは主張しない
 
-そもそも開発中に誤発注を出さないための封じ込め設計は[テスト環境のない本番APIで誤発注を封じ込める設計](https://zenn.dev/ozapon/articles/gmo-fx-order-containment)、同じシステムのレートリミット設計は[GMOコインFX APIのレートリミットをクライアント側で強制する設計](https://zenn.dev/ozapon/articles/gmo-fx-rate-limiter)、認証まわりでハマった話は[GMOコインFX APIのERR-5010でハマった話](https://zenn.dev/ozapon/articles/gmo-fx-hmac-sign-path)、発注ボディの数量型でハマった話は[ERR-5105の記事](https://zenn.dev/ozapon/articles/gmo-fx-err5105-ifo-size)、HTTP 200 の業務エラーを空配列として握りつぶした話は[約定0件に化けた記事](https://zenn.dev/ozapon/articles/gmo-fx-http200-empty-executions)、Step2 → Step3 の取消反映待ちは[決済前キャンセルの設計記事](https://zenn.dev/ozapon/articles/gmo-fx-err423-ordered-size)に書いています。
+そもそも開発中に誤発注を出さないための封じ込め設計は[テスト環境のない本番APIで誤発注を封じ込める設計](https://zenn.dev/ozapon/articles/gmo-fx-order-containment)、同じシステムのレートリミット設計は[GMOコインFX APIのレートリミットをクライアント側で強制する設計](https://zenn.dev/ozapon/articles/gmo-fx-rate-limiter)、認証まわりでハマった話は[GMOコインFX APIのERR-5010でハマった話](https://zenn.dev/ozapon/articles/gmo-fx-hmac-sign-path)、発注ボディの数量型でハマった話は[ERR-5105の記事](https://zenn.dev/ozapon/articles/gmo-fx-err5105-ifo-size)、HTTP 200 の業務エラーを空配列として握りつぶした話は[約定0件に化けた記事](https://zenn.dev/ozapon/articles/gmo-fx-http200-empty-executions)、Step2 → Step3 の取消反映待ちは[決済前キャンセルの設計記事](https://zenn.dev/ozapon/articles/gmo-fx-err423-ordered-size)、Step0 の閉場判定は[閉場なのに建玉取得が通った話](https://zenn.dev/ozapon/articles/gmo-fx-market-status-closed)に書いています。
