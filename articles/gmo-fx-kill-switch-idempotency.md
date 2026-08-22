@@ -14,7 +14,7 @@ published: true
 
 ## 前提: システム概要と制約条件
 
-GMOコインFX の API を使う自動売買システム(AWS Lambda + Python)です。全建玉の決済は2つの経路から起こります。1つは EventBridge cron で毎朝起動する**定時手仕舞いバッチ**、もう1つは緊急時に管理画面から手動 POST で起動する**非常停止用の Lambda**(以下 Kill Switch)です。
+GMOコインFX の API を使う自動売買システム(AWS Lambda + Python)です。全建玉の決済は2つの経路から起こります。1つは EventBridge cron で定時起動する**手仕舞いバッチ**、もう1つは緊急時に IAM 認証で手動 invoke する**非常停止用の Lambda**(以下 Kill Switch)です。
 
 制約条件は次のとおりです。
 
@@ -28,7 +28,7 @@ Kill Switch と定時手仕舞いバッチは、**同一の決済シーケンス
 
 ```mermaid
 flowchart LR
-    A[管理画面] -- 手動POST --> K[Kill Switch Lambda]
+    A[運用者] -- IAMで手動invoke --> K[Kill Switch Lambda]
     E[EventBridge cron] --> B[定時手仕舞いバッチ Lambda]
     K --> S[共有の決済シーケンス<br/>キャンセル・ファースト]
     B --> S
@@ -150,4 +150,4 @@ return {"closed": closed, "residual": residual, "verification_failed": False}
 - エラーの no-op 吸収は**実測確認済みコードの完全一致のみ**。文字列部分一致は数値断片との偶然の一致で偽成功を生む。非常停止では「成功と誤認」が最悪なので、判定不能はすべて失敗側に倒す
 - 取消の API 上の成功は「受付」にすぎず、決済の成功も約定を保証しない。Step3 の前に `orderedSize` の反映を待ち、決済後は短ポーリングで消えたことだけを完了とする。残ったものを閉じたとは主張しない
 
-そもそも開発中に誤発注を出さないための封じ込め設計は[テスト環境のない本番APIで誤発注を封じ込める設計](https://zenn.dev/ozapon/articles/gmo-fx-order-containment)、同じシステムのレートリミット設計は[GMOコインFX APIのレートリミットをクライアント側で強制する設計](https://zenn.dev/ozapon/articles/gmo-fx-rate-limiter)、認証まわりでハマった話は[GMOコインFX APIのERR-5010でハマった話](https://zenn.dev/ozapon/articles/gmo-fx-hmac-sign-path)、発注ボディの数量型でハマった話は[ERR-5105の記事](https://zenn.dev/ozapon/articles/gmo-fx-err5105-ifo-size)、HTTP 200 の業務エラーを空配列として握りつぶした話は[約定0件に化けた記事](https://zenn.dev/ozapon/articles/gmo-fx-http200-empty-executions)、Step2 → Step3 の取消反映待ちは[決済前キャンセルの設計記事](https://zenn.dev/ozapon/articles/gmo-fx-err423-ordered-size)、Step0 の閉場判定は[閉場なのに建玉取得が通った話](https://zenn.dev/ozapon/articles/gmo-fx-market-status-closed)に書いています。
+発注する価格の作り方は[LLMに損切り価格を出させない設計](https://zenn.dev/ozapon/articles/gmo-fx-llm-sl-python)に書いています。開発中に誤発注を出さないための封じ込め設計は[テスト環境のない本番APIで誤発注を封じ込める設計](https://zenn.dev/ozapon/articles/gmo-fx-order-containment)、同じシステムのレートリミット設計は[GMOコインFX APIのレートリミットをクライアント側で強制する設計](https://zenn.dev/ozapon/articles/gmo-fx-rate-limiter)、認証まわりでハマった話は[GMOコインFX APIのERR-5010でハマった話](https://zenn.dev/ozapon/articles/gmo-fx-hmac-sign-path)、発注ボディの数量型でハマった話は[ERR-5105の記事](https://zenn.dev/ozapon/articles/gmo-fx-err5105-ifo-size)、HTTP 200 の業務エラーを空配列として握りつぶした話は[約定0件に化けた記事](https://zenn.dev/ozapon/articles/gmo-fx-http200-empty-executions)、Step2 → Step3 の取消反映待ちは[決済前キャンセルの設計記事](https://zenn.dev/ozapon/articles/gmo-fx-err423-ordered-size)、Step0 の閉場判定は[閉場なのに建玉取得が通った話](https://zenn.dev/ozapon/articles/gmo-fx-market-status-closed)に書いています。

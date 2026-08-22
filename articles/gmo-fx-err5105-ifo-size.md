@@ -120,4 +120,4 @@ class IfoOrderRequest(BaseModel):
 - `ERR-5105` はメッセージからフィールドを特定しにくい。数量範囲の `ERR-5126` と切り分けたうえで、型を疑う
 - 副作用のある仕様確定は、[封じ込め](https://zenn.dev/ozapon/articles/gmo-fx-order-containment)を維持した制御下の疎通で行う
 
-認証の枝は [ERR-5010](https://zenn.dev/ozapon/articles/gmo-fx-hmac-sign-path) / [ERR-5012](https://zenn.dev/ozapon/articles/gmo-fx-err5012-ipv6)、設計の幹は [封じ込め](https://zenn.dev/ozapon/articles/gmo-fx-order-containment) / [レートリミット](https://zenn.dev/ozapon/articles/gmo-fx-rate-limiter) / [Kill Switch 冪等](https://zenn.dev/ozapon/articles/gmo-fx-kill-switch-idempotency) に書いています。
+認証の枝は [ERR-5010](https://zenn.dev/ozapon/articles/gmo-fx-hmac-sign-path) / [ERR-5012](https://zenn.dev/ozapon/articles/gmo-fx-err5012-ipv6)、設計の幹は [何を予約するか](https://zenn.dev/ozapon/articles/gmo-fx-llm-sl-python) / [封じ込め](https://zenn.dev/ozapon/articles/gmo-fx-order-containment) / [レートリミット](https://zenn.dev/ozapon/articles/gmo-fx-rate-limiter) / [Kill Switch 冪等](https://zenn.dev/ozapon/articles/gmo-fx-kill-switch-idempotency) に書いています。
