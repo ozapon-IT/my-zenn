@@ -193,9 +193,8 @@ def _fetch_positions_after_cancel_reflection(
 
 ## まとめ
 
-- 公式の ERR-423 / ERR-200 から cancel-first を組むのは自然ですが、**MARKET・満額・単一建玉**では有効注文残存でも close が通ることがあります。仕様断定ではなく、実測の範囲付き事実です
-- 同経路の数量超過は ERR-189 で、建玉 `size` 超過として発火します
-- 参照系 GET は同一スナップショットを再利用し、世代間隔は約 0.7〜1.7 秒です。`openPositions` と `activeOrders` の突き合わせは合成像を生みます
-- それでも cancel-first と短ポーリングは残す価値があります。変えるべきなのは「拒否コード前提」の説明のほうです
+公式の拒否コードを cancel-first の根拠にするのは自然ですが、待たせる理由にはしません。順序と短ポーリングは残し、変えるのは「なぜ待つか」の説明です。
+
+参照系 GET は同一スナップショットを再利用し、エンドポイント同士は独立にドリフトします。2つの GET を突き合わせて状態を作ってはいけません。
 
 全体設計は [Kill Switch の冪等設計](https://zenn.dev/ozapon/articles/gmo-fx-kill-switch-idempotency)、レート制御は [レートリミット設計](https://zenn.dev/ozapon/articles/gmo-fx-rate-limiter)、参照系の HTTP 200 空配列化は [約定が0件に化けた記事](https://zenn.dev/ozapon/articles/gmo-fx-http200-empty-executions)、数量型は [ERR-5105 の記事](https://zenn.dev/ozapon/articles/gmo-fx-err5105-ifo-size) にあります。

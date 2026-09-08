@@ -114,10 +114,8 @@ class IfoOrderRequest(BaseModel):
 
 ## まとめ
 
-- `ifoOrder` の `firstSize` / `secondSize` は**整数文字列**で送る。JSON number だと `ERR-5105`
-- 公式パラメータ表の Type は `string`。サンプルどおりに引用符付きで送れば踏まない
-- ドメインを `int` にするなら、シリアライズ境界で str 化を明示する(`field_serializer` など)
-- `ERR-5105` はメッセージからフィールドを特定しにくい。数量範囲の `ERR-5126` と切り分けたうえで、型を疑う
-- 副作用のある仕様確定は、[封じ込め](https://zenn.dev/ozapon/articles/gmo-fx-order-containment)を維持した制御下の疎通で行う
+数量の正しさと、ワイヤに乗る型は別の責務です。ドメインを `int` で持つなら、シリアライズ境界で文字列化を明示します。公式パラメータ表の Type が `string` なら、そのとおりに送ればこの型エラーは踏まない、というのが切り分けです。
+
+`ERR-5105` はメッセージからフィールドを特定しにくいので、数量範囲の `ERR-5126` と分けたうえで型を疑います。副作用のある仕様確定は、[封じ込め](https://zenn.dev/ozapon/articles/gmo-fx-order-containment)を維持した制御下の疎通で行います。
 
 認証の枝は [ERR-5010](https://zenn.dev/ozapon/articles/gmo-fx-hmac-sign-path) / [ERR-5012](https://zenn.dev/ozapon/articles/gmo-fx-err5012-ipv6)、設計の幹は [何を予約するか](https://zenn.dev/ozapon/articles/gmo-fx-llm-sl-python) / [封じ込め](https://zenn.dev/ozapon/articles/gmo-fx-order-containment) / [レートリミット](https://zenn.dev/ozapon/articles/gmo-fx-rate-limiter) / [Kill Switch 冪等](https://zenn.dev/ozapon/articles/gmo-fx-kill-switch-idempotency) に書いています。
