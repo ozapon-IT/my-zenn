@@ -160,3 +160,5 @@ def test_gate_is_single_sourced() -> None:
 - 安全機構そのものもテスト対象にする。特に「正しく遮断されるか」だけでなく、**「正しく解禁されるか」も含めて検証する**。遮断側だけを固く作ると、解禁が必要な場面(今回で言えば非常停止)で機能しない事態を見逃す
 
 発注する価格の作り方は[LLMに損切り価格を出させない設計](https://zenn.dev/ozapon/articles/gmo-fx-llm-sl-python)に、制御下の疎通で踏んだ `ifoOrder` の数量型(`ERR-5105`)は[GMOコインFX APIのERR-5105でハマった話](https://zenn.dev/ozapon/articles/gmo-fx-err5105-ifo-size)に、同じシステムの非常停止の設計は[GMOコインFX 自動売買の非常停止(Kill Switch)](https://zenn.dev/ozapon/articles/gmo-fx-kill-switch-idempotency)に、レートリミットの設計は[GMOコインFX APIのレートリミットをクライアント側で強制する設計](https://zenn.dev/ozapon/articles/gmo-fx-rate-limiter)に、止めてよい cron と止めてはいけない監視を分ける設計は[EventBridge Scheduler が DISABLED だと監視も沈黙する](https://zenn.dev/ozapon/articles/gmo-fx-closeout-watchdog)に書いています。
+
+実発注しない執行観測デモは、このゲートを使わず、取引系シークレットも発注経路も持ちません。ゲートを閉じれば全部安全、という前提にはしません。[実発注しないデモで執行を観測する記事](https://zenn.dev/ozapon/articles/gmo-fx-virtual-broker)に書いています。

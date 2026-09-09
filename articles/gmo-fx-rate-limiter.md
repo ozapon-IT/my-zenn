@@ -137,3 +137,5 @@ GET は上限も失敗時のコストも別なので、プロセスを跨いだ�
 プロセス内リミッターで済むかは、どの実行が重なり得るかの洗い出しとセットです。稀にしか起きない重なりは、レート制御ではなく冪等性で吸収してよい、というのがこの構成での判断です。
 
 発注する価格の作り方は[LLMに損切り価格を出させない設計](https://zenn.dev/ozapon/articles/gmo-fx-llm-sl-python)に書いています。開発中に誤発注を出さないための封じ込め設計は[テスト環境のない本番APIで誤発注を封じ込める設計](https://zenn.dev/ozapon/articles/gmo-fx-order-containment)、同じシステムの非常停止の冪等設計は[GMOコインFX自動売買の非常停止(Kill Switch) — ロックではなく冪等性で二重決済を防ぐ設計](https://zenn.dev/ozapon/articles/gmo-fx-kill-switch-idempotency)、認証まわりでハマった話は[GMOコインFX APIのERR-5010でハマった話 — 署名対象パスとAcceptヘッダの2つの罠](https://zenn.dev/ozapon/articles/gmo-fx-hmac-sign-path)、発注ボディの数量型でハマった話は[ERR-5105の記事](https://zenn.dev/ozapon/articles/gmo-fx-err5105-ifo-size)に書いています。
+
+執行観測デモの Public GET は、呼び出し上限の言及がないため(2026年9月時点で[公式ドキュメント](https://api.coin.z.com/fxdocs/)を確認)、下限1秒・既定5秒とし、既存の GET リミッターも併用しています。[実発注しないデモで執行を観測する記事](https://zenn.dev/ozapon/articles/gmo-fx-virtual-broker)に書いています。

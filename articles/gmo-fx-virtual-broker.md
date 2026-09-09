@@ -222,7 +222,7 @@ JST 固定 cron を季節で差し替える案は採りません。切替忘れ�
 
 cron 式の書き方(開始値からの増分)はテストで固定しています。詳細は本記事の主役ではないので、枝の話に回します。
 
-Public REST の呼び出し上限は、公式ドキュメントに明記がありません(2026年8月時点。明記があるのは Private GET / POST と WebSocket の subscribe)。下限1秒、既定5秒にし、流量制限を観測したら間隔を倍化します。既存クライアントの GET リミッターも併用します。レート制御の本体は[クライアント側で強制する記事](https://zenn.dev/ozapon/articles/gmo-fx-rate-limiter)です。
+Public REST の呼び出し上限は、公式ドキュメントに言及がありません(2026年9月時点で[公式ドキュメント](https://api.coin.z.com/fxdocs/)を確認。明記があるのは Private GET / POST と WebSocket の subscribe)。下限1秒、既定5秒にします。既存クライアントの GET リミッターも併用します。レート制御の本体は[クライアント側で強制する記事](https://zenn.dev/ozapon/articles/gmo-fx-rate-limiter)です。
 
 ## 設計判断: 代替案とトレードオフ
 
