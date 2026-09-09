@@ -107,10 +107,10 @@ def is_market_open(client, symbol: str) -> bool:
 
 ## まとめ
 
-- 閉場中でも Private 参照系 GET は HTTP 200 + `status: 0` を返す。**参照が通ることは開場の証拠にならない**
-- 市場の開閉は `GET /public/v1/status` の **`data.status`** で判定する。`OPEN` 完全一致のときだけ続行し、それ以外・不明・取得失敗はすべて閉場扱いに倒す
-- ボディ外側の `status`(API 成否)と `data.status`(市場状態)は同名で別物。どちらを見ているかを意識する
-- 参照系 GET の健全性チェックは「API 障害」の検知として残す価値がある。**閉場の検知と API 障害の検知は別の目的**なので、片方でもう片方を兼ねさせない
-- 手仕舞いや非常停止の先頭に開閉確認を置くなら、代理判定ではなく公式ステータスを主判定にする
+開閉確認を参照系 GET の成否で代用すると、閉場を素通りします。閉場の検知と API 障害の検知は別の目的なので、片方でもう片方を兼ねさせません。
+
+手仕舞いや非常停止の先頭に置くなら、公式ステータスを主判定にします。参照系の健全性チェックは残してよいですが、開場の証拠にはしません。
 
 同じシステムの非常停止の冪等設計は[非常停止(Kill Switch)の記事](https://zenn.dev/ozapon/articles/gmo-fx-kill-switch-idempotency)、HTTP 200 の業務エラーを空配列として握りつぶした話は[約定0件に化けた記事](https://zenn.dev/ozapon/articles/gmo-fx-http200-empty-executions)、決済の前に取消の反映を待つ話は[決済前キャンセルの記事](https://zenn.dev/ozapon/articles/gmo-fx-err423-ordered-size)、レートリミットの設計は[レートリミットの記事](https://zenn.dev/ozapon/articles/gmo-fx-rate-limiter)に書いています。
+
+閉場中の ticker が HTTP 200 のまま価格を返し、エンベロープの `status` だけでは開閉が分からない、という穴の型は、実発注しない執行観測デモでも同じでした。[実発注しないデモで執行を観測する記事](https://zenn.dev/ozapon/articles/gmo-fx-virtual-broker)に書いています。

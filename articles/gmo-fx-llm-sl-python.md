@@ -305,3 +305,5 @@ class ValidationReasonCode(StrEnum):
 - 失敗の行き先はすべて見送りに統一します。例外・拒否・パース失敗・バリデーション違反のどれであっても、記録を残して「今日は何もしない」に倒します
 
 本記事は、この自動売買システムの記事群のうち「**何を予約するか**」を扱う上流にあたります。予約したあとの話は、開発中の誤発注を封じ込める仕組みを[テスト環境のない本番APIで誤発注を封じ込める設計](https://zenn.dev/ozapon/articles/gmo-fx-order-containment)に、`ifoOrder` の発注ボディで数量の型に踏んだ話を[GMOコインFX APIのERR-5105でハマった話](https://zenn.dev/ozapon/articles/gmo-fx-err5105-ifo-size)に、API 呼び出しの流量制御を[GMOコインFX APIのレートリミットをクライアント側で強制する設計](https://zenn.dev/ozapon/articles/gmo-fx-rate-limiter)に、建てたポジションを緊急停止で確実に閉じる設計を[GMOコインFX 自動売買の非常停止(Kill Switch)](https://zenn.dev/ozapon/articles/gmo-fx-kill-switch-idempotency)に、それぞれ書いています。
+
+予約型とは別系統で、実発注せず執行を観測するデモは[実発注しないデモで執行を観測する記事](https://zenn.dev/ozapon/articles/gmo-fx-virtual-broker)に書いています。

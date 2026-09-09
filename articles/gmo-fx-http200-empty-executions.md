@@ -108,10 +108,8 @@ HTTP 200 + `status: 1` は例外になり、空配列にはなりません。回
 
 ## まとめ
 
-- Private API の業務エラーは **HTTP 200 + ボディ `status != 0`** で返る。`raise_for_status()` だけでは足りない
-- `data` 欠落を空配列に倒すと、API エラーが「約定なし」に化ける
-- 下流(日次ノート等)は取得結果を事実として要約するため、化けた 0 件が**事実と反対の文面**になる
-- 約定系 GET も `raise_for_gmo_status` を通す。「取得失敗」と「約定なし」を混ぜない
-- 他経路で検査済みでも、参照系の一部だけ穴が残ることがある。経路横断で監査する
+HTTP 200 だけでは業務エラーを取りこぼします。`data` 欠落を空配列に倒すと、「取得失敗」が「約定なし」に化け、下流の要約が事実と反対になります。この2つは混ぜません。
+
+発注側で検査済みでも、参照系の一部だけ穴が残ることがあります。経路横断で監査する、というのが持ち帰る判断です。
 
 認証の HTTP 200 業務エラーは [ERR-5010](https://zenn.dev/ozapon/articles/gmo-fx-hmac-sign-path) / [ERR-5012](https://zenn.dev/ozapon/articles/gmo-fx-err5012-ipv6)、発注ボディの型は [ERR-5105](https://zenn.dev/ozapon/articles/gmo-fx-err5105-ifo-size)、決済シーケンス側の body status 検査は [Kill Switch の冪等設計](https://zenn.dev/ozapon/articles/gmo-fx-kill-switch-idempotency)、レート制御は [レートリミット設計](https://zenn.dev/ozapon/articles/gmo-fx-rate-limiter) に書いています。
